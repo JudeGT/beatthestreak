@@ -1,0 +1,32 @@
+# Data files (large, don't commit)
+data/
+*.duckdb
+*.parquet
+
+# Checkpoints
+models/checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Logs
+*.log
+test_*.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
