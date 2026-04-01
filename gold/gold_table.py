@@ -115,6 +115,12 @@ def build_gold_table(
         for i in range(NUM_PITCHER_ARCHETYPES)
     )
 
+    # Check if silver_features_daily exists
+    has_daily = con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = 'silver_features_daily'").fetchone()[0] > 0
+    
+    if not has_daily:
+        con.execute("CREATE TEMP TABLE silver_features_daily AS SELECT * FROM silver_features WHERE 1=0")
+
     con.execute(f"""
         CREATE OR REPLACE TABLE gold_features AS
         SELECT
@@ -178,7 +184,11 @@ def build_gold_table(
             COALESCE(sf.same_hand_matchup, 0) AS same_hand_matchup,
             CASE WHEN sf.stand = 'L' THEN 1 ELSE 0 END AS stand_enc,
 
-        FROM silver_features sf
+        FROM (
+            SELECT * FROM silver_features
+            UNION ALL
+            SELECT * FROM silver_features_daily WHERE 1=1 -- Only if exists
+        ) sf
         {hawkeye_join}
         {physics_join}
         ORDER BY sf.batter, sf.game_date

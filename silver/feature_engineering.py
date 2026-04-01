@@ -144,6 +144,99 @@ def build_silver_features(
     log.info(f"silver_features built: {count:,} rows.")
 
 
+def build_silver_daily(
+    con: duckdb.DuckDBPyConnection,
+    date_str: str,
+    weather_df: pd.DataFrame | None = None,
+) -> None:
+    """
+    Build 'silver_features_daily' for a future/today date using previous stats.
+    
+    This handles the case where Statcast (pa_grain) doesn't have today's data yet.
+    """
+    log.info(f"Building silver_features_daily for {date_str}...")
+
+    # Ensure daily_lineups view exists
+    lineup_path = Path("data/bronze") / f"daily_lineups_{date_str}.parquet"
+    if not lineup_path.exists():
+        log.warning(f"No daily lineups file found at {lineup_path}. Skipping silver_daily.")
+        return
+
+    con.execute(f"CREATE OR REPLACE VIEW daily_lineups_raw AS SELECT * FROM read_parquet('{lineup_path}')")
+
+    if weather_df is not None:
+        con.register("weather_df", weather_df)
+        weather_join = "LEFT JOIN weather_df w ON dl.home_team = w.home_team"
+        weather_cols = "w.temp_f, w.humidity_pct, w.pressure_mb"
+    else:
+        weather_join = ""
+        weather_cols = "72.0 AS temp_f, 50.0 AS humidity_pct, 1013.0 AS pressure_mb"
+
+    # Assemble the feature vector for today's lineups
+    con.execute(f"""
+        CREATE OR REPLACE TABLE silver_features_daily AS
+        SELECT
+            dl.batter,
+            dl.game_date,
+            dl.home_team,
+            dl.away_team,
+            dl.stand,
+            
+            -- Dummy outcomes for today (not used for inference, but matches schema)
+            0 AS hits,
+            0 AS pas,
+            0.0 AS h_pa_today,
+
+            -- Most recent rolling windows (from batter_rolling)
+            br.ghp_roll_7d, br.ghp_roll_14d, br.ghp_roll_30d, br.ghp_roll_60d, br.ghp_roll_120d,
+            br.h_pa_roll_7d, br.h_pa_roll_14d, br.h_pa_roll_30d, br.h_pa_roll_60d, br.h_pa_roll_120d,
+            br.xwoba_roll_7d, br.xwoba_roll_14d, br.xwoba_roll_30d,
+            br.barrel_roll_7d, br.barrel_roll_30d,
+            br.exit_velo_roll_7d, br.exit_velo_roll_30d,
+
+            -- Opponent pitcher statistics (from pitcher_archetypes)
+            pa.archetype_id      AS opp_pitcher_archetype,
+            pa.archetype_label   AS opp_pitcher_archetype_label,
+            pa.avg_release_speed AS opp_pitcher_velo,
+            pa.avg_spin_rate     AS opp_pitcher_spin,
+            pa.tunnel_consistency AS opp_pitcher_tunnel,
+
+            -- Matchup: Left/Right split
+            CASE WHEN dl.stand = 'L' AND pa_throws.p_throws = 'L' THEN 1 ELSE 0 END AS same_hand_matchup,
+
+            {weather_cols},
+
+            -- Hit label (None for inference)
+            0 AS hit_label
+
+        FROM daily_lineups_raw dl
+        
+        -- Get most recent rolling row for this batter
+        LEFT JOIN (
+            SELECT batter, MAX(game_date) as last_date
+            FROM batter_rolling
+            WHERE game_date < '{date_str}'
+            GROUP BY batter
+        ) last_br ON dl.batter = last_br.batter
+        LEFT JOIN batter_rolling br 
+          ON dl.batter = br.batter AND last_br.last_date = br.game_date
+
+        -- Get pitcher archetype (fixed metrics for the pitcher)
+        LEFT JOIN pitcher_archetypes pa ON dl.pitcher = pa.pitcher
+
+        -- Get pitcher throws for the same_hand context
+        -- (Ideally statsapi would provide p_throws, but we can look it up or add it to ingest_daily)
+        LEFT JOIN (
+             SELECT DISTINCT pitcher, p_throws FROM pa_grain
+        ) pa_throws ON dl.pitcher = pa_throws.pitcher
+
+        {weather_join}
+    """)
+    
+    count = con.execute("SELECT COUNT(*) FROM silver_features_daily").fetchone()[0]
+    log.info(f"silver_features_daily built: {count:,} rows.")
+
+
 def run_silver_features(
     weather_df: pd.DataFrame | None = None,
 ) -> None:

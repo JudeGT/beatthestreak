@@ -56,8 +56,32 @@ def picks(date, streak, dd, savers, min_p, as_json):
         candidates = rank_batters_for_date(date, min_prob=min_p)
 
     if not candidates:
-        console.print("[yellow]⚠ No candidates found for this date. Is the pipeline run?[/yellow]")
-        return
+        import datetime
+        today = datetime.datetime.now().strftime('%Y-%m-%d')
+        if date == today:
+            console.print(f"[yellow]⚠ No candidates for today. Attempting to fetch real-time lineups...[/yellow]")
+            # Trigger update_daily logic inline or call it (simplest is to call the function logic or a helper)
+            from bronze.ingest_daily import fetch_daily_lineups, save_daily_lineups
+            from silver.feature_engineering import build_silver_daily
+            from gold.gold_table import run_gold_table
+            import duckdb
+            from config import DUCKDB_PATH
+
+            df = fetch_daily_lineups(date)
+            if not df.empty:
+                save_daily_lineups(df)
+                con = duckdb.connect(str(DUCKDB_PATH))
+                build_silver_daily(con, date)
+                con.close()
+                run_gold_table()
+                # Re-rank
+                candidates = rank_batters_for_date(date, min_prob=min_p)
+            else:
+                console.print("[red]✖ Failed to fetch real-time lineups. They might not be available yet.[/red]")
+                return
+        else:
+            console.print("[yellow]⚠ No candidates found for this date. Is the historical pipeline run?[/yellow]")
+            return
 
     candidates = apply_opener_adjustment(candidates, date)
     candidates = apply_shift_recalibration(candidates, date)
@@ -122,6 +146,40 @@ def picks(date, streak, dd, savers, min_p, as_json):
         title="🤖 Strategic Advisor", border_style="blue"
     ))
     console.print()
+
+
+@cli.command()
+@click.option("--date", default=None, help="Date to update (YYYY-MM-DD). Defaults to today.")
+def update_daily(date):
+    """Fetch real-time lineups and update the Gold table for today's predictions."""
+    from bronze.ingest_daily import fetch_daily_lineups, save_daily_lineups
+    from silver.feature_engineering import build_silver_daily
+    from gold.gold_table import run_gold_table
+    import duckdb
+    from config import DUCKDB_PATH
+
+    if date is None:
+        from datetime import datetime
+        date = datetime.now().strftime('%Y-%m-%d')
+
+    console.print(f"\n[bold cyan]🔄 Updating Daily Lineups for {date}...[/bold cyan]\n")
+
+    with console.status("Fetching lineups from MLB API..."):
+        df = fetch_daily_lineups(date)
+        if df.empty:
+            console.print(f"[yellow]⚠ No lineups found for {date}. Probable pitchers might be missing.[/yellow]")
+            return
+        save_daily_lineups(df)
+
+    with console.status("Building silver daily features..."):
+        con = duckdb.connect(str(DUCKDB_PATH))
+        build_silver_daily(con, date)
+        con.close()
+
+    with console.status("Refreshing Gold table..."):
+        run_gold_table()
+
+    console.print(f"[bold green]✓ Gold table updated with real-time data for {date}.[/bold green]")
 
 
 # ── predict ────────────────────────────────────────────────────────────────────
