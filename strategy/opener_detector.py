@@ -82,12 +82,17 @@ def detect_bullpen_games(game_date: str) -> dict[str, bool]:
     con = duckdb.connect(str(DUCKDB_PATH))
     try:
         result = con.execute("""
-            WITH inn1_starters AS (
-                SELECT home_team, MAX(COUNT(*)) AS max_pitches
+            WITH pitch_counts AS (
+                SELECT home_team, pitcher, COUNT(*) AS cnt
                 FROM statcast_raw
                 WHERE game_date = ?
                   AND inning = 1
                 GROUP BY home_team, pitcher
+            ),
+            inn1_starters AS (
+                SELECT home_team, MAX(cnt) AS max_pitches
+                FROM pitch_counts
+                GROUP BY home_team
             )
             SELECT home_team,
                    CASE WHEN max_pitches < 50 THEN TRUE ELSE FALSE END AS is_bullpen_game

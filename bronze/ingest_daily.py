@@ -26,7 +26,7 @@ def fetch_daily_lineups(date_str: str = None) -> pd.DataFrame:
     -------
     pd.DataFrame
         DataFrame with columns: [game_date, game_id, home_team, away_team, 
-                                 batter_id, pitcher_id, stand, team]
+                                 batter, batter_name, pitcher, stand, team]
     """
     if date_str is None:
         date_str = datetime.now().strftime('%Y-%m-%d')
@@ -69,6 +69,7 @@ def fetch_daily_lineups(date_str: str = None) -> pd.DataFrame:
                     'home_team': home_team,
                     'away_team': away_team,
                     'batter': p['id'],
+                    'batter_name': p.get('fullName', 'Unknown'),
                     'pitcher': away_pitcher,
                     'stand': p.get('batSide', {}).get('code', 'R'), # Default R if missing
                     'team': home_team,
@@ -83,6 +84,7 @@ def fetch_daily_lineups(date_str: str = None) -> pd.DataFrame:
                     'home_team': home_team,
                     'away_team': away_team,
                     'batter': p['id'],
+                    'batter_name': p.get('fullName', 'Unknown'),
                     'pitcher': home_pitcher,
                     'stand': p.get('batSide', {}).get('code', 'R'),
                     'team': away_team,

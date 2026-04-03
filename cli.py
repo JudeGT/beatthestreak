@@ -115,7 +115,7 @@ def picks(date, streak, dd, savers, min_p, as_json):
     # Rich table output
     table = Table(box=box.ROUNDED, title=f"Top Picks — {date}", show_lines=True)
     table.add_column("Rank",        style="bold yellow",  width=5)
-    table.add_column("Batter ID",   style="cyan",         width=10)
+    table.add_column("Batter",      style="cyan",         width=20)
     table.add_column("P(Hit)",      style="bold green",   width=8)
     table.add_column("Matchup",     style="white",        width=12)
     table.add_column("Stand",       style="white",        width=6)
@@ -125,12 +125,12 @@ def picks(date, streak, dd, savers, min_p, as_json):
     for i, p in enumerate(selected):
         table.add_row(
             str(i + 1),
-            str(p.batter_id),
-            f"{p.p_hit:.3f}",
-            f"{p.away_team} @ {p.home_team}",
-            p.stand,
-            "✅ YES" if p.double_down else "—",
-            p.explanation[:60] if p.explanation else "",
+            p.get("batter_name", str(p["batter_id"])),
+            f"{p['p_hit']:.3f}",
+            f"{p['away_team']} @ {p['home_team']}",
+            p['stand'],
+            "✅ YES" if p.get("double_down") else "—",
+            p.get("explanation", "")[:60],
         )
 
     console.print(table)

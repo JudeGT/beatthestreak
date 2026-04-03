@@ -41,6 +41,7 @@ def build_pa_grain(con: duckdb.DuckDBPyConnection) -> None:
             away_team,
             stand,
             p_throws,
+            LAST(player_name)             AS batter_name,
             if_fielding_alignment,
             -- Terminal event of the PA (last pitch row)
             LAST(events)                  AS pa_event,
@@ -113,6 +114,7 @@ def build_rolling_features(
             home_team,
             away_team,
             stand,
+            ANY_VALUE(batter_name) AS batter_name,
         FROM pa_grain
         GROUP BY batter, game_date, home_team, away_team, stand
     """)
@@ -166,6 +168,7 @@ def build_rolling_features(
             home_team,
             away_team,
             stand,
+            batter_name,
             {window_sql}
         FROM batter_daily
         ORDER BY batter, game_date

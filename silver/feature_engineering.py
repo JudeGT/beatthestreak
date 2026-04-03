@@ -62,6 +62,7 @@ def build_silver_features(
             br.home_team,
             br.away_team,
             br.stand,
+            br.batter_name,
 
             -- Daily outcome
             br.hits,
@@ -181,6 +182,7 @@ def build_silver_daily(
             dl.home_team,
             dl.away_team,
             dl.stand,
+            COALESCE(dl.batter_name, br.batter_name) AS batter_name,
             
             -- Dummy outcomes for today (not used for inference, but matches schema)
             0 AS hits,

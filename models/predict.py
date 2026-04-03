@@ -187,11 +187,11 @@ def rank_batters_for_date(
     Returns
     -------
     list[dict] sorted by P(Hit) descending. Each dict has:
-        batter_id, game_date, p_hit, home_team, away_team, stand
+        batter_id, game_date, p_hit, home_team, away_team, stand, batter_name
     """
     con = duckdb.connect(str(DUCKDB_PATH))
     candidates = con.execute("""
-        SELECT DISTINCT batter, home_team, away_team, stand
+        SELECT DISTINCT batter, batter_name, home_team, away_team, stand
         FROM gold_features
         WHERE game_date = ?
     """, [game_date]).df()
@@ -207,12 +207,13 @@ def rank_batters_for_date(
             p = predict_hit_prob(int(row["batter"]), game_date, checkpoint_path)
             if p >= min_prob:
                 results.append({
-                    "batter_id":  int(row["batter"]),
-                    "game_date":  game_date,
-                    "p_hit":      p,
-                    "home_team":  row["home_team"],
-                    "away_team":  row["away_team"],
-                    "stand":      row["stand"],
+                    "batter_id":   int(row["batter"]),
+                    "batter_name": str(row["batter_name"]),
+                    "game_date":   game_date,
+                    "p_hit":       p,
+                    "home_team":   row["home_team"],
+                    "away_team":   row["away_team"],
+                    "stand":       row["stand"],
                 })
         except Exception as exc:
             log.debug(f"Skipping batter {row['batter']}: {exc}")

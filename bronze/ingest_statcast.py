@@ -66,7 +66,7 @@ def ingest_statcast(
 
     # Keep only the columns we need for feature engineering
     KEEP_COLS = [
-        "game_date", "batter", "pitcher", "events", "description",
+        "player_name", "game_date", "batter", "pitcher", "events", "description",
         "stand", "p_throws", "home_team", "away_team",
         "release_speed", "release_spin_rate",
         "pfx_x", "pfx_z",

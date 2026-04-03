@@ -130,6 +130,7 @@ def build_gold_table(
             sf.home_team,
             sf.away_team,
             sf.stand,
+            sf.batter_name,
             sf.hit_label,
 
             -- Rolling features
