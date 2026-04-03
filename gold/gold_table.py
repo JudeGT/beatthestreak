@@ -121,6 +121,10 @@ def build_gold_table(
     if not has_daily:
         con.execute("CREATE TEMP TABLE silver_features_daily AS SELECT * FROM silver_features WHERE 1=0")
 
+    # Ensure silver_features has the batter_name column if its an old table
+    con.execute("ALTER TABLE silver_features ADD COLUMN IF NOT EXISTS batter_name VARCHAR")
+    con.execute("UPDATE silver_features SET batter_name = CAST(batter AS VARCHAR) WHERE batter_name IS NULL")
+
     con.execute(f"""
         CREATE OR REPLACE TABLE gold_features AS
         SELECT
@@ -187,7 +191,7 @@ def build_gold_table(
 
         FROM (
             SELECT * FROM silver_features
-            UNION ALL
+            UNION ALL BY NAME
             SELECT * FROM silver_features_daily WHERE 1=1 -- Only if exists
         ) sf
         {hawkeye_join}

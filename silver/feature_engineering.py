@@ -62,7 +62,7 @@ def build_silver_features(
             br.home_team,
             br.away_team,
             br.stand,
-            br.batter_name,
+            CAST(br.batter AS VARCHAR) AS batter_name,
 
             -- Daily outcome
             br.hits,
@@ -182,12 +182,12 @@ def build_silver_daily(
             dl.home_team,
             dl.away_team,
             dl.stand,
-            COALESCE(dl.batter_name, br.batter_name) AS batter_name,
+            COALESCE(dl.batter_name, CAST(br.batter AS VARCHAR)) AS batter_name,
             
             -- Dummy outcomes for today (not used for inference, but matches schema)
-            0 AS hits,
-            0 AS pas,
-            0.0 AS h_pa_today,
+            0::BIGINT AS hits,
+            0::BIGINT AS pas,
+            0.0::DOUBLE AS h_pa_today,
 
             -- Most recent rolling windows (from batter_rolling)
             br.ghp_roll_7d, br.ghp_roll_14d, br.ghp_roll_30d, br.ghp_roll_60d, br.ghp_roll_120d,
@@ -209,7 +209,7 @@ def build_silver_daily(
             {weather_cols},
 
             -- Hit label (None for inference)
-            0 AS hit_label
+            0::BIGINT AS hit_label
 
         FROM daily_lineups_raw dl
         
