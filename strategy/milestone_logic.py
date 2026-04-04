@@ -60,6 +60,7 @@ def select_picks(
     streak_len: int,
     double_down_budget: int = 1,
     force_single_pick: bool = False,
+    limit: Optional[int] = None,
 ) -> list[Pick]:
     """
     Select today's picks from a ranked list of batter candidates.
@@ -73,8 +74,8 @@ def select_picks(
         Current streak length (0 = start of streak attempt).
     double_down_budget : int
         Number of Double Down uses remaining.
-    force_single_pick : bool
-        If True, return at most 1 pick regardless of phase (ultra-conservative override).
+    limit : int, optional
+        Override the maximum number of picks to return (default: 2 or 1 based on phase).
 
     Returns
     -------
@@ -83,7 +84,11 @@ def select_picks(
     """
     threshold = get_threshold(streak_len)
     phase     = get_phase(streak_len)
-    max_picks = 1 if (phase == "ultra_conservative" or force_single_pick) else MAX_DAILY_PICKS
+    
+    if limit is not None:
+        max_picks = limit
+    else:
+        max_picks = 1 if (phase == "ultra_conservative" or force_single_pick) else MAX_DAILY_PICKS
 
     log.info(
         f"Streak={streak_len} | Phase={phase} | "

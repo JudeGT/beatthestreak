@@ -39,8 +39,9 @@ def cli():
 @click.option("--dd",      default=1,      help="Double Down budget remaining", type=int)
 @click.option("--savers",  default=1,      help="Streak Savers remaining", type=int)
 @click.option("--min-p",   default=0.70,   help="Minimum P(Hit) threshold", type=float)
+@click.option("--limit",   default=None,   help="Number of picks to show", type=int)
 @click.option("--json",    "as_json", is_flag=True, help="Output raw JSON")
-def picks(date, streak, dd, savers, min_p, as_json):
+def picks(date, streak, dd, savers, min_p, limit, as_json):
     """Show today's top picks with strategy applied."""
     from models.predict import rank_batters_for_date
     from strategy.milestone_logic import select_picks, get_threshold, get_phase
@@ -87,7 +88,7 @@ def picks(date, streak, dd, savers, min_p, as_json):
     candidates = apply_shift_recalibration(candidates, date)
     candidates.sort(key=lambda c: c["p_hit"], reverse=True)
 
-    selected = select_picks(candidates, streak, double_down_budget=dd)
+    selected = select_picks(candidates, streak, double_down_budget=dd, limit=limit)
 
     # RL recommendation
     rl_agent = StreakDQNAgent(epsilon=0.0)
