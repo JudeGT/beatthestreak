@@ -127,27 +127,27 @@ def build_rolling_features(
             AVG(hits / NULLIF(pas, 0)) OVER (
                 PARTITION BY batter
                 ORDER BY game_date
-                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND CURRENT ROW
+                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
             ) AS h_pa_roll_{w}d,
             AVG(avg_xba + COALESCE(hits / NULLIF(pas, 0), 0)) OVER (
                 PARTITION BY batter
                 ORDER BY game_date
-                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND CURRENT ROW
+                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
             ) AS ghp_roll_{w}d,
             AVG(avg_xwoba) OVER (
                 PARTITION BY batter
                 ORDER BY game_date
-                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND CURRENT ROW
+                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
             ) AS xwoba_roll_{w}d,
             AVG(barrel_rate) OVER (
                 PARTITION BY batter
                 ORDER BY game_date
-                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND CURRENT ROW
+                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
             ) AS barrel_roll_{w}d,
             AVG(avg_exit_velo) OVER (
                 PARTITION BY batter
                 ORDER BY game_date
-                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND CURRENT ROW
+                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
             ) AS exit_velo_roll_{w}d,
             """
         ])
