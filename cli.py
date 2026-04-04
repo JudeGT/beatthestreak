@@ -125,12 +125,12 @@ def picks(date, streak, dd, savers, min_p, as_json):
     for i, p in enumerate(selected):
         table.add_row(
             str(i + 1),
-            p.get("batter_name", str(p["batter_id"])),
-            f"{p['p_hit']:.3f}",
-            f"{p['away_team']} @ {p['home_team']}",
-            p['stand'],
-            "✅ YES" if p.get("double_down") else "—",
-            p.get("explanation", "")[:60],
+            p.batter_name,
+            f"{p.p_hit:.3f}",
+            f"{p.away_team} @ {p.home_team}",
+            p.stand,
+            "✅ YES" if p.double_down else "—",
+            p.explanation[:60],
         )
 
     console.print(table)

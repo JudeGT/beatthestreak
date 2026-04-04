@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 @dataclass
 class Pick:
     batter_id:   int
+    batter_name: str
     game_date:   str
     p_hit:       float
     home_team:   str
@@ -33,6 +34,7 @@ class Pick:
     def to_dict(self) -> dict:
         return {
             "batter_id":   self.batter_id,
+            "batter_name": self.batter_name,
             "game_date":   self.game_date,
             "p_hit":       round(self.p_hit, 4),
             "home_team":   self.home_team,
@@ -109,6 +111,7 @@ def select_picks(
         )
         pick = Pick(
             batter_id=c["batter_id"],
+            batter_name=c.get("batter_name", "Unknown"),
             game_date=c["game_date"],
             p_hit=c["p_hit"],
             home_team=c["home_team"],
@@ -119,7 +122,7 @@ def select_picks(
         )
         picks.append(pick)
         log.info(
-            f"  Pick #{i+1}: batter={pick.batter_id} "
+            f"  Pick #{i+1}: batter={pick.batter_name} ({pick.batter_id}) "
             f"P={pick.p_hit:.3f} DD={pick.double_down}"
         )
 
