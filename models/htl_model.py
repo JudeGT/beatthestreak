@@ -12,7 +12,6 @@ Final prediction head:
 import torch
 import torch.nn as nn
 from models.lstm_temporal import TemporalLSTM
-from models.transformer_attention import EnvironmentAttention
 from config import DROPOUT
 
 
@@ -49,9 +48,9 @@ class HTLModel(nn.Module):
     def __init__(
         self,
         n_pa_features: int = 8,
-        n_env_features: int = 22,
-        lstm_hidden: int = 256,
-        transformer_d: int = 128,
+        n_env_features: int = 37,
+        lstm_hidden: int = 128,
+        transformer_d: int = 64,
         dropout: float = DROPOUT,
     ):
         super().__init__()
@@ -62,32 +61,29 @@ class HTLModel(nn.Module):
             dropout=dropout,
         )
 
-        self.transformer = EnvironmentAttention(
-            n_env_features=n_env_features,
-            d_model=transformer_d,
-            dropout=dropout,
+        # High-Speed MLP for Environmental Context (much faster than Transformer on CPU)
+        self.env_mlp = nn.Sequential(
+            nn.Linear(n_env_features, transformer_d * 2),
+            nn.BatchNorm1d(transformer_d * 2),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(transformer_d * 2, transformer_d),
+            nn.LayerNorm(transformer_d),
         )
 
-        lstm_out_size = self.lstm.output_size          # hidden_size * 2
-        env_out_size  = self.transformer.output_size   # transformer_d
-
+        lstm_out_size = self.lstm.output_size          # hidden_size * 2 (bi)
+        env_out_size  = transformer_d
         fusion_in = lstm_out_size + env_out_size
 
-        # Learned fusion attention gate
-        self.fusion_gate = nn.Sequential(
-            nn.Linear(fusion_in, fusion_in),
-            nn.Sigmoid(),
-        )
-
-        # Prediction head
+        # Deep Prediction Head
         self.head = nn.Sequential(
             nn.Linear(fusion_in, 256),
             nn.LayerNorm(256),
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(256, 64),
+            nn.LayerNorm(64),
             nn.GELU(),
-            nn.Dropout(dropout / 2),
             nn.Linear(64, 1),
         )
 
@@ -116,14 +112,10 @@ class HTLModel(nn.Module):
         logit : (batch,)
         """
         lstm_ctx = self.lstm(pa_seq)              # (batch, lstm_hidden*2)
-        env_ctx  = self.transformer(env_feat)     # (batch, transformer_d)
+        env_ctx  = self.env_mlp(env_feat)         # (batch, transformer_d)
 
         # Concatenate modalities
         fused = torch.cat([lstm_ctx, env_ctx], dim=-1)   # (batch, fusion_in)
-
-        # Gated fusion
-        gate  = self.fusion_gate(fused)
-        fused = fused * gate
 
         logit = self.head(fused).squeeze(-1)   # (batch,)
         return logit
