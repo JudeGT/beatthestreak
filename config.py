@@ -98,20 +98,20 @@ HUMIDOR_RH_TARGET: dict[str, float] = {
 }
 
 # ── Neural Network Hyperparameters ────────────────────────────────────────────
-LSTM_HIDDEN_SIZE = 256
+LSTM_HIDDEN_SIZE = 128
 LSTM_NUM_LAYERS = 2
 LSTM_SEQUENCE_LEN = 20          # last N plate appearances
-TRANSFORMER_D_MODEL = 128
+TRANSFORMER_D_MODEL = 64
 TRANSFORMER_NHEAD = 4
 TRANSFORMER_NUM_LAYERS = 2
 DROPOUT = 0.3
 
 # ── Training Hyperparameters ──────────────────────────────────────────────────
-TRAIN_EPOCHS = 10
-BATCH_SIZE = 128
+TRAIN_EPOCHS = 20
+BATCH_SIZE = 64
 LEARNING_RATE = 5e-4
 WEIGHT_DECAY = 1e-4
-EARLY_STOPPING_PATIENCE = 7
+EARLY_STOPPING_PATIENCE = 10
 TRAIN_VAL_TEST_SPLIT = (0.80, 0.10, 0.10)
 SUBSAMPLE_RATIO = 1  # Use 10% of data for faster training (set to 1.0 for full dataset)
 
