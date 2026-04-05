@@ -41,17 +41,17 @@ class EnvironmentAttention(nn.Module):
     """
 
     ENV_TOKEN_GROUPS = {
-        "weather":   4,    # temp_f, humidity_pct, pressure_mb, air_density
-        "park":      3,    # park_babip_factor, env_composite, altitude (proxy via env)
-        "stuff":     4,    # stuff_plus, opp_pitcher_velo, opp_pitcher_spin, tunnel
-        "archetype": 8,    # one-hot pitcher archetype (NUM_PITCHER_ARCHETYPES=8)
-        "matchup":   3,    # stand_enc, same_hand_matchup, cor_adjustment
+        "rolling":   15,   # ghp_roll(5), h_pa_roll(3), xwoba(3), barrel(2), exit_velo(2)
+        "stuff":     4,    # stuff_plus, velo, spin, tunnel
+        "archetype": 8,    # one-hot pitcher archetypes
+        "park":      8,    # babip_factor, env_composite, air_density, cor, humidity, temp, etc
+        "matchup":   2,    # same_hand_matchup, stand_enc
     }
     N_TOKENS = len(ENV_TOKEN_GROUPS)
 
     def __init__(
         self,
-        n_env_features: int = 22,   # sum of ENV_TOKEN_GROUPS values = 22
+        n_env_features: int = 37,   # sum of ENV_TOKEN_GROUPS values = 37
         d_model: int = TRANSFORMER_D_MODEL,
         nhead: int = TRANSFORMER_NHEAD,
         num_layers: int = TRANSFORMER_NUM_LAYERS,

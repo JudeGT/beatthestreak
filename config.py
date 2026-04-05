@@ -98,10 +98,10 @@ HUMIDOR_RH_TARGET: dict[str, float] = {
 }
 
 # ── Neural Network Hyperparameters ────────────────────────────────────────────
-LSTM_HIDDEN_SIZE = 128
+LSTM_HIDDEN_SIZE = 256
 LSTM_NUM_LAYERS = 2
-LSTM_SEQUENCE_LEN = 20          # last N plate appearances
-TRANSFORMER_D_MODEL = 64
+LSTM_SEQUENCE_LEN = 80          # last N plate appearances
+TRANSFORMER_D_MODEL = 128
 TRANSFORMER_NHEAD = 4
 TRANSFORMER_NUM_LAYERS = 2
 DROPOUT = 0.3
