@@ -71,6 +71,13 @@ def load_model(
     return model, device, ckpt
 
 
+def standardize(x: np.ndarray, mean: list, scale: list) -> np.ndarray:
+    """Standardize a vector or sequence using stored mean/scale."""
+    m = np.array(mean, dtype=np.float32)
+    s = np.array(scale, dtype=np.float32)
+    return (x - m) / (s + 1e-8)
+
+
 def build_env_vector(
     batter: int,
     game_date: str,
@@ -156,7 +163,7 @@ def predict_hit_prob(
     ValueError
         If the batter/date combination is not in the gold table.
     """
-    model, device, _ = load_model(checkpoint_path)
+    model, device, ckpt = load_model(checkpoint_path)
     con = duckdb.connect(str(DUCKDB_PATH))
 
     env_vec = build_env_vector(batter_id, game_date, con)
@@ -166,6 +173,14 @@ def predict_hit_prob(
 
     pa_seq = build_pa_sequence(batter_id, game_date, con)
     con.close()
+
+    # Scale using stats from the checkpoint
+    if "env_scaler_mean" in ckpt:
+        env_vec = standardize(env_vec, ckpt["env_scaler_mean"], ckpt["env_scaler_scale"])
+    
+    if "seq_scaler_mean" in ckpt:
+        # pa_seq is (seq_len, n_pa_features)
+        pa_seq = standardize(pa_seq, ckpt["seq_scaler_mean"], ckpt["seq_scaler_scale"])
 
     # To tensors
     env_t = torch.tensor(env_vec, dtype=torch.float32).unsqueeze(0).to(device)

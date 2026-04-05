@@ -23,6 +23,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 import duckdb
+from sklearn.preprocessing import StandardScaler
 
 try:
     from sklearn.metrics import roc_auc_score, average_precision_score
@@ -191,6 +192,29 @@ def train_model(
         stratify=labels[tmp_idx], random_state=42
     )
 
+    # ── Scaler ─────────────────────────────────────────────────────────────
+    # Fit scalers only on training data
+    env_scaler = StandardScaler()
+    seq_scaler = StandardScaler() # Flatten for sequence scaling
+
+    # Env Features
+    env_features[train_idx] = env_scaler.fit_transform(env_features[train_idx])
+    env_features[val_idx]   = env_scaler.transform(env_features[val_idx])
+    env_features[test_idx]  = env_scaler.transform(env_features[test_idx])
+
+    # Sequence Features (reshape to (N*T, D) to scale across all time steps)
+    T, D = pa_sequences.shape[1], pa_sequences.shape[2]
+    train_seq_flat = pa_sequences[train_idx].reshape(-1, D)
+    val_seq_flat   = pa_sequences[val_idx].reshape(-1, D)
+    test_seq_flat  = pa_sequences[test_idx].reshape(-1, D)
+
+    seq_scaler.fit(train_seq_flat)
+    pa_sequences[train_idx] = seq_scaler.transform(train_seq_flat).reshape(-1, T, D)
+    pa_sequences[val_idx]   = seq_scaler.transform(val_seq_flat).reshape(-1, T, D)
+    pa_sequences[test_idx]  = seq_scaler.transform(test_seq_flat).reshape(-1, T, D)
+
+    log.info(f"Features normalized: env mean={env_scaler.mean_[0]:.2f} seq std={seq_scaler.scale_[0]:.2f}")
+
     log.info(f"Split: train={len(train_idx):,} val={len(val_idx):,} test={len(test_idx):,}")
 
     def make_dataset(idx_arr):
@@ -303,6 +327,10 @@ def train_model(
                 "val_auc": val_auc,
                 "n_pa_features": N_PA_FEATURES,
                 "n_env_features": n_env_features,
+                "env_scaler_mean": env_scaler.mean_.tolist(),
+                "env_scaler_scale": env_scaler.scale_.tolist(),
+                "seq_scaler_mean": seq_scaler.mean_.tolist(),
+                "seq_scaler_scale": seq_scaler.scale_.tolist(),
             }, checkpoint_path)
             log.info(f"  ✓ New best checkpoint saved (AUC={val_auc:.4f})")
         else:
