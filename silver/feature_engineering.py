@@ -106,7 +106,7 @@ def build_silver_features(
 
         FROM batter_rolling br
 
-        -- Join pitcher archetype for the game
+        -- Join pitcher archetype for the game (THE STARTER)
         LEFT JOIN (
             SELECT
                 pg_inner.game_date,
@@ -118,8 +118,11 @@ def build_silver_features(
                 pg_arch.tunnel_consistency,
                 pg_inner.p_throws,
             FROM (
-                SELECT DISTINCT game_date, home_team, away_team, pitcher, p_throws
+                -- Use DISTINCT ON to pick only the starting pitcher (earliest at-bat)
+                SELECT DISTINCT ON (game_date, home_team) 
+                    game_date, home_team, pitcher, p_throws
                 FROM pa_grain
+                ORDER BY game_date, home_team, at_bat_number ASC
             ) pg_inner
             LEFT JOIN pitcher_archetypes pg_arch
               ON pg_inner.pitcher = pg_arch.pitcher
@@ -127,10 +130,12 @@ def build_silver_features(
           ON br.game_date = pa.game_date
          AND (br.home_team = pa.home_team OR br.away_team = pa.home_team)
 
-        -- Used to get p_throws for same-hand split
+        -- Used to get p_throws for same-hand split (STARTER ONLY)
         LEFT JOIN (
-            SELECT DISTINCT game_date, home_team, away_team, p_throws
+            SELECT DISTINCT ON (game_date, home_team)
+                game_date, home_team, p_throws
             FROM pa_grain
+            ORDER BY game_date, home_team, at_bat_number ASC
         ) pg
           ON br.game_date = pg.game_date
          AND (br.home_team = pg.home_team OR br.away_team = pg.home_team)
