@@ -48,7 +48,7 @@ class HTLModel(nn.Module):
     def __init__(
         self,
         n_pa_features: int = 8,
-        n_env_features: int = 37,
+        n_env_features: int = 43,
         lstm_hidden: int = 128,
         transformer_d: int = 64,
         dropout: float = DROPOUT,

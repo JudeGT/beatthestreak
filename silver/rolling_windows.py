@@ -56,6 +56,9 @@ def build_pa_grain(con: duckdb.DuckDBPyConnection) -> None:
                  'caught_stealing_home','pickoff_1b','pickoff_2b',
                  'pickoff_3b','runner_double_play') THEN 1 ELSE 0
             END                           AS is_pa,
+            -- New: K and BB indicators for pitcher/batter rolling stats
+            CASE WHEN LAST(events) IN ('strikeout', 'strikeout_double_play') THEN 1 ELSE 0 END AS is_k,
+            CASE WHEN LAST(events) IN ('walk', 'intent_walk', 'hit_by_pitch') THEN 1 ELSE 0 END AS is_bb,
             -- Plate discipline / quality metrics (last pitch values)
             MAX(launch_speed)             AS launch_speed,
             MAX(launch_angle)             AS launch_angle,
@@ -106,6 +109,8 @@ def build_rolling_features(
             game_date,
             SUM(is_hit)           AS hits,
             SUM(is_pa)            AS pas,
+            SUM(is_k)             AS k_count,
+            SUM(is_bb)            AS bb_count,
             AVG(xba)              AS avg_xba,
             AVG(xwoba)            AS avg_xwoba,
             AVG(barrel_flag)      AS barrel_rate,
@@ -144,11 +149,21 @@ def build_rolling_features(
                 ORDER BY game_date
                 RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
             ) AS barrel_roll_{w}d,
-            AVG(avg_exit_velo) OVER (
+            AVG(exit_velo_roll_{w}d) OVER (
                 PARTITION BY batter
                 ORDER BY game_date
                 RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
             ) AS exit_velo_roll_{w}d,
+            AVG(k_count / NULLIF(pas, 0)) OVER (
+                PARTITION BY batter
+                ORDER BY game_date
+                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
+            ) AS k_rate_roll_{w}d,
+            AVG(bb_count / NULLIF(pas, 0)) OVER (
+                PARTITION BY batter
+                ORDER BY game_date
+                RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
+            ) AS bb_rate_roll_{w}d,
             """
         ])
 
@@ -176,12 +191,63 @@ def build_rolling_features(
     log.info("batter_rolling table created.")
 
 
+def build_pitcher_rolling(con: duckdb.DuckDBPyConnection) -> None:
+    """
+    Build rolling stats for PITCHERS (Vulnerability).
+    """
+    log.info("Computing pitcher rolling windows (30d, 60d)...")
+    
+    con.execute("""
+        CREATE OR REPLACE TABLE pitcher_daily AS
+        SELECT
+            pitcher,
+            game_date,
+            SUM(is_hit) AS hits_allowed,
+            SUM(is_k)   AS strikerouts,
+            SUM(is_bb)   AS walks,
+            SUM(is_pa)  AS bat_faced
+        FROM pa_grain
+        GROUP BY pitcher, game_date
+    """)
+
+    for w in [30, 60]:
+        con.execute(f"""
+            ALTER TABLE pitcher_daily ADD COLUMN h_allowed_roll_{w}d DOUBLE;
+            UPDATE pitcher_daily SET h_allowed_roll_{w}d = sub.val
+            FROM (
+                SELECT pitcher, game_date,
+                    AVG(hits_allowed / NULLIF(bat_faced, 0)) OVER (
+                        PARTITION BY pitcher
+                        ORDER BY game_date
+                        RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
+                    ) as val
+                FROM pitcher_daily
+            ) sub
+            WHERE pitcher_daily.pitcher = sub.pitcher AND pitcher_daily.game_date = sub.game_date
+        """)
+        # K rate allowed
+        con.execute(f"""
+            ALTER TABLE pitcher_daily ADD COLUMN k_allowed_roll_{w}d DOUBLE;
+            UPDATE pitcher_daily SET k_allowed_roll_{w}d = sub.val
+            FROM (
+                SELECT pitcher, game_date,
+                    AVG(strikerouts / NULLIF(bat_faced, 0)) OVER (
+                        PARTITION BY pitcher
+                        ORDER BY game_date
+                        RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
+                    ) as val
+                FROM pitcher_daily
+            ) sub
+            WHERE pitcher_daily.pitcher = sub.pitcher AND pitcher_daily.game_date = sub.game_date
+        """)
+
 def run_silver_rolling(parquet_dir: Path) -> None:
     """End-to-end: register Parquet → build PA grain → build rolling features."""
     con = _connect()
     register_statcast_parquet(con, parquet_dir)
     build_pa_grain(con)
     build_rolling_features(con)
+    build_pitcher_rolling(con)
     con.close()
     log.info("Silver rolling-window layer complete.")
 

@@ -43,6 +43,11 @@ GOLD_FEATURE_COLS = [
     "same_hand_matchup",
     # Categorical (encoded)
     "stand_enc",    # 0=R, 1=L
+    # New: Batter Discipline
+    "k_rate_roll_7d", "bb_rate_roll_7d",
+    # New: Pitcher Vulnerability
+    "opp_hits_allowed_roll_30d", "opp_hits_allowed_roll_60d",
+    "opp_k_allowed_roll_30d", "opp_k_allowed_roll_60d",
 ]
 
 
@@ -153,6 +158,12 @@ def build_gold_table(
             COALESCE(sf.barrel_roll_30d,0.0) AS barrel_roll_30d,
             COALESCE(sf.exit_velo_roll_7d,  0.0) AS exit_velo_roll_7d,
             COALESCE(sf.exit_velo_roll_30d, 0.0) AS exit_velo_roll_30d,
+            COALESCE(sf.k_rate_roll_7d,     0.22) AS k_rate_roll_7d,
+            COALESCE(sf.bb_rate_roll_7d,    0.08) AS bb_rate_roll_7d,
+            COALESCE(sf.opp_hits_allowed_roll_30d, 0.250) AS opp_hits_allowed_roll_30d,
+            COALESCE(sf.opp_hits_allowed_roll_60d, 0.250) AS opp_hits_allowed_roll_60d,
+            COALESCE(sf.opp_k_allowed_roll_30d,    0.220) AS opp_k_allowed_roll_30d,
+            COALESCE(sf.opp_k_allowed_roll_60d,    0.220) AS opp_k_allowed_roll_60d,
 
             -- Stuff+ proxy: normalized pitcher quality vs. league average
             -- (release_speed / 94.0 + spin_rate / 2400.0) * 100 / 2 → centered ~100

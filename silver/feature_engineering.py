@@ -97,6 +97,16 @@ def build_silver_features(
 
             -- Split: batter hand vs pitcher hand
             CASE WHEN br.stand = 'L' AND pg.p_throws = 'L' THEN 1 ELSE 0 END AS same_hand_matchup,
+            
+            -- Batter discipline (Form)
+            br.k_rate_roll_7d,
+            br.bb_rate_roll_7d,
+
+            -- Pitcher Vulnerability (Rolling Stats)
+            pd.h_allowed_roll_30d  AS opp_hits_allowed_roll_30d,
+            pd.h_allowed_roll_60d  AS opp_hits_allowed_roll_60d,
+            pd.k_allowed_roll_30d  AS opp_k_allowed_roll_30d,
+            pd.k_allowed_roll_60d  AS opp_k_allowed_roll_60d,
 
             -- Weather context
             {weather_cols}
@@ -139,6 +149,10 @@ def build_silver_features(
         ) pg
           ON br.game_date = pg.game_date
          AND (br.home_team = pg.home_team OR br.away_team = pg.home_team)
+
+        -- Pitcher Vulnerability (Join by starting pitcher ID)
+        LEFT JOIN pitcher_daily pd
+          ON pa.pitcher = pd.pitcher AND pa.game_date = pd.game_date
 
         {weather_join}
 
@@ -200,6 +214,13 @@ def build_silver_daily(
             br.xwoba_roll_7d, br.xwoba_roll_14d, br.xwoba_roll_30d,
             br.barrel_roll_7d, br.barrel_roll_30d,
             br.exit_velo_roll_7d, br.exit_velo_roll_30d,
+            br.k_rate_roll_7d, br.bb_rate_roll_7d,
+
+            -- Pitcher Vulnerability (Rolling Stats for the opponent)
+            pd.h_allowed_roll_30d AS opp_hits_allowed_roll_30d,
+            pd.h_allowed_roll_60d AS opp_hits_allowed_roll_60d,
+            pd.k_allowed_roll_30d AS opp_k_allowed_roll_30d,
+            pd.k_allowed_roll_60d AS opp_k_allowed_roll_60d,
 
             -- Opponent pitcher statistics (from pitcher_archetypes)
             pa.archetype_id      AS opp_pitcher_archetype,
@@ -232,10 +253,19 @@ def build_silver_daily(
         LEFT JOIN pitcher_archetypes pa ON dl.pitcher = pa.pitcher
 
         -- Get pitcher throws for the same_hand context
-        -- (Ideally statsapi would provide p_throws, but we can look it up or add it to ingest_daily)
         LEFT JOIN (
-             SELECT DISTINCT pitcher, p_throws FROM pa_grain
+             SELECT DISTINCT ON (pitcher) pitcher, p_throws FROM pa_grain
         ) pa_throws ON dl.pitcher = pa_throws.pitcher
+
+        -- Get most recent rolling row for THIS PITCHER
+        LEFT JOIN (
+            SELECT pitcher, MAX(game_date) as last_date
+            FROM pitcher_daily
+            WHERE game_date < '{date_str}'
+            GROUP BY pitcher
+        ) last_pd ON dl.pitcher = last_pd.pitcher
+        LEFT JOIN pitcher_daily pd 
+          ON dl.pitcher = pd.pitcher AND last_pd.last_date = pd.game_date
 
         {weather_join}
     """)
