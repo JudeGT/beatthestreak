@@ -127,6 +127,7 @@ def build_silver_features(
                 pg_arch.avg_spin_rate,
                 pg_arch.tunnel_consistency,
                 pg_inner.p_throws,
+                pg_inner.pitcher,
             FROM (
                 -- Use DISTINCT ON to pick only the starting pitcher (earliest at-bat)
                 SELECT DISTINCT ON (game_date, home_team) 
