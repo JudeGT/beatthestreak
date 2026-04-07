@@ -149,7 +149,7 @@ def build_rolling_features(
                 ORDER BY game_date
                 RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
             ) AS barrel_roll_{w}d,
-            AVG(exit_velo_roll_{w}d) OVER (
+            AVG(avg_exit_velo) OVER (
                 PARTITION BY batter
                 ORDER BY game_date
                 RANGE BETWEEN INTERVAL '{w} days' PRECEDING AND INTERVAL '1 day' PRECEDING
